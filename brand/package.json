@@ -1,0 +1,13 @@
+{
+  "name": "keeltv-brand",
+  "private": true,
+  "description": "The Keel TV identity, and the generator that writes its logos and icons",
+  "type": "module",
+  "scripts": {
+    "brand:generate": "node generate.mjs"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "opentype.js": "^2.0.0"
+  }
+}

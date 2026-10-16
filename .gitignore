@@ -1,0 +1,12 @@
+.DS_Store
+
+/.gradle
+/.kotlin/
+/build
+/app/build
+/local.properties
+
+*.jks
+*.keystore
+
+CLAUDE.local.md

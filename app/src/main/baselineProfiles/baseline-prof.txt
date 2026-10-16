@@ -1,0 +1,13 @@
+# What ART compiles ahead of time instead of interpreting on the way to the first frame.
+#
+# Compose, tv-material, Paging, Room and Coil ship their own profiles inside their AARs and AGP
+# merges them, but nothing covers this app's own classes, so in a release build every composable
+# here runs interpreted until the JIT catches up. On a TV box that is the first minute of use, and
+# it is exactly the minute somebody spends scrolling a channel list.
+#
+# The rules are wildcards, expanded by AGP against the minified DEX at build time. Everything the
+# app has is in the hot path of either startup or the first scroll: there is no cold half of this
+# code base worth carving out, and a hand-kept list of method signatures would rot against R8.
+# H = hot, S = startup, P = post-startup.
+HSPLcom/keeltv/app/**->**(**)**
+Lcom/keeltv/app/**;

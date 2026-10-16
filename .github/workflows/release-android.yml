@@ -1,0 +1,68 @@
+name: Android release
+
+# Every push to main that changes a build input is published as the next build, a GitHub release
+# the app offers under Settings, About. The run number is the build number, so the first run is
+# 0.0.1 and each push after it one more. See versionCode in app/build.gradle.kts. Renaming this
+# file starts the run number again, and every installed TV would then refuse the next build as a
+# downgrade. A run can also be started by hand from the Actions tab.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'libs/**'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/release-android.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-android
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      # Every build is signed with the same key, or the TV refuses it as an update to the last.
+      - name: Build
+        env:
+          KEELTV_BUILD_NUMBER: ${{ github.run_number }}
+          KEELTV_KEYSTORE_BASE64: ${{ secrets.KEELTV_KEYSTORE_BASE64 }}
+          KEELTV_KEYSTORE: ${{ runner.temp }}/release.jks
+          KEELTV_STORE_PASSWORD: ${{ secrets.KEELTV_STORE_PASSWORD }}
+          KEELTV_KEY_ALIAS: ${{ secrets.KEELTV_KEY_ALIAS }}
+          KEELTV_KEY_PASSWORD: ${{ secrets.KEELTV_KEY_PASSWORD }}
+        run: |
+          echo "$KEELTV_KEYSTORE_BASE64" | base64 -d > "$KEELTV_KEYSTORE"
+          ./gradlew assembleRelease
+
+      # One release per build, carrying the APK and the note of its version. GitHub serves both from
+      # the latest release at a fixed address, which is where the app looks.
+      - name: Publish
+        working-directory: app/build/outputs/apk/release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jq '.elements[0] | {versionCode, versionName}' output-metadata.json > keeltv.json
+          cat keeltv.json
+          version=$(jq -r .versionName keeltv.json)
+          mv app-release.apk keeltv.apk
+          gh release create "v$version" keeltv.apk keeltv.json --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --title "Keel TV $version" --generate-notes
